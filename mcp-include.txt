@@ -1,0 +1,5 @@
+Low-level, dependency-light "send an email" path for Deno, usable as a library and a CLI. 
+Provides a provider-agnostic transport interface, a nodemailer SMTP transport (with 
+attachments and a real connect+auth verify()), a mock transport, a one-shot send() helper, 
+and a first-class CLI with send/verify subcommands. Not an email system — no queueing, 
+persistence, templating, or retries.
