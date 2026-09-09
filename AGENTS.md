@@ -45,20 +45,26 @@ src/
                            _toNodemailerMessage (pure mappers, exported for tests)
   transport-mock.ts        createMockTransport (records sends; deterministic ids)
   send-email.ts            send(message, { transport } | { smtp })
-  cli.ts                   runCli(); subcommands, flags, stdin, env resolver, exit codes
+  env.ts                   resolveSmtpOptions(env), SmtpEnvError, EnvGetter — PURE
+                           SMTP_* env-shape → NodemailerTransportOptions mapping
+  cli.ts                   runCli(); subcommands, flags, stdin, .env loading, exit codes
   mod.ts                   pure library re-exports (npm "." entry; tsc-safe)
   main.ts                  JSR exports/CLI entry: re-exports mod.ts + import.meta.main guard
 tests/
   send-email.test.ts            unit: send() + mock transport
   transport-nodemailer.test.ts  pure mapping seams (no network)
+  env.test.ts                   resolveSmtpOptions() mapping + SmtpEnvError cases
   cli.test.ts                   runCli() with injected I/O (no network)
   ethereal.test.ts              opt-in real SMTP (ignore: true)
 ```
 
 ## Critical Conventions (hard invariants — enforce in review)
 
-1. **The library NEVER reads `.env` or `Deno.env`.** Only `cli.ts` resolves env
-   → options. Any symbol exported from `mod.ts` must have zero ambient/env behavior.
+1. **The library NEVER reads `.env` or `Deno.env`.** Only `cli.ts` touches the
+   ambient environment / `.env` file. Any symbol exported from `mod.ts` must have
+   zero ambient behavior — `resolveSmtpOptions()` qualifies because it is a pure
+   function over a caller-supplied getter; keep it that way (no `Deno.env`
+   fallback, ever).
 2. **Secrets are never logged.** Never print `auth.pass`. No `--user`/`--pass`
    CLI flags — credentials come only from env.
 3. **Throw on failure; return only success data** (`SendResult` is just `{ externalId }`).
@@ -85,7 +91,7 @@ help | version
 - Exit codes: `0` ok, `1` runtime failure, `2` usage/config error.
 - `verify` on a transport without `verify()` → "not supported", exit `0`.
 
-## Env vars (CLI only)
+## Env vars (vocabulary defined in `env.ts`, read only by the CLI)
 
 `SMTP_HOST` (required), `SMTP_PORT` (587), `SMTP_SECURE`, `SMTP_USER`,
 `SMTP_PASS`, `SMTP_FROM`, `SMTP_REPLY_TO`, `SMTP_SERVERNAME`,
@@ -94,7 +100,10 @@ help | version
 
 ## Before Making Changes
 
-- [ ] Keep the library env-free; env resolution stays in `cli.ts` only.
+- [ ] Keep the library env-free; `.env` loading and `Deno.env` stay in `cli.ts`
+      only. `env.ts` maps a getter → options and must stay pure.
+- [ ] Changing what an `SMTP_*` key means? Change it in `env.ts` (the CLI and
+      every downstream tool inherit it) and update the README env table + API.md.
 - [ ] New `SendOptions` field? Justify it vs. `providerOptions` first.
 - [ ] Run `deno fmt`, `deno lint`, `deno check`, `deno task test`, and
       `deno publish --dry-run --allow-dirty`.

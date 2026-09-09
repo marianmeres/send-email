@@ -17,6 +17,8 @@ queueing, persistence, templating, retries, or DB. Those belong a layer up (see
   and a real connect+auth `verify()`.
 - **Mock transport** for tests and dry runs.
 - **One-shot `send()`** convenience.
+- **`resolveSmtpOptions()`** — the `SMTP_*` env-shape → transport-options mapping,
+  exported as a pure function so other tools share the CLI's vocabulary.
 - **First-class CLI** with `send` and `verify`, `.env` support, and stdin bodies.
 
 ## Installation
@@ -88,6 +90,22 @@ transport.getLastEmail()?.subject;
 
 > Errors are **thrown, never returned**. A successful result only carries
 > `{ externalId }`.
+
+Building a tool that, like the CLI, wants `SMTP_HOST` / `SMTP_PORT` / … to mean
+the same thing? `resolveSmtpOptions()` is that mapping, exported. It is a pure
+function over a `key → value` lookup **you** supply — the library still never
+reads the environment itself:
+
+```ts
+import { createNodemailerTransport, resolveSmtpOptions } from "@marianmeres/send-email";
+
+const transport = createNodemailerTransport(
+	resolveSmtpOptions((key) => Deno.env.get(key)),
+);
+```
+
+It throws `SmtpEnvError` on a missing `SMTP_HOST` or a malformed value, and it
+does not consume `SMTP_FROM` (a message concern, not a transport one).
 
 ## CLI usage
 

@@ -16,6 +16,7 @@ await npmBuild({
 		"transport-nodemailer.ts",
 		"transport-mock.ts",
 		"send-email.ts",
+		"env.ts",
 	],
 	dependencies: versionizeDeps(["nodemailer"], denoJson),
 });

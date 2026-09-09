@@ -98,7 +98,77 @@ transport.sentEmails.length; // 1
 
 ---
 
+### `resolveSmtpOptions(env)`
+
+Maps environment-**shaped** values to [NodemailerTransportOptions](#nodemailertransportoptions).
+Pure: it only ever calls the `env` lookup you pass in and never touches
+`Deno.env`, `process.env`, or a `.env` file — so exporting it keeps the
+library's "never reads the environment" invariant intact. The CLI uses this
+exact function; consumers that want the same `SMTP_*` vocabulary should too.
+
+**Parameters:**
+
+- `env` ([EnvGetter](#envgetter)) — `key → value | undefined` lookup.
+
+**Returns:** [NodemailerTransportOptions](#nodemailertransportoptions)
+
+**Throws:** [SmtpEnvError](#smtpenverror) when `SMTP_HOST` is missing, or when
+`SMTP_PORT` / a timeout is not a non-negative decimal integer (hex, scientific,
+negative and whitespace forms are rejected), `SMTP_PORT` is outside 1–65535, or
+a boolean key holds something other than `true/false/1/0/yes/no/on/off`.
+
+**Keys read:**
+
+| Key                            | Required | Maps to                             |
+| ------------------------------ | -------- | ----------------------------------- |
+| `SMTP_HOST`                    | yes      | `host`                              |
+| `SMTP_PORT`                    | no       | `port` (default `587`)              |
+| `SMTP_SECURE`                  | no       | `secure`                            |
+| `SMTP_USER` / `SMTP_PASS`      | no       | `auth` (set when either is present) |
+| `SMTP_REPLY_TO`                | no       | `defaultReplyTo`                    |
+| `SMTP_SERVERNAME`              | no       | `tls.servername` (trimmed)          |
+| `SMTP_TLS_REJECT_UNAUTHORIZED` | no       | `tls.rejectUnauthorized`            |
+| `SMTP_CONNECTION_TIMEOUT_MS`   | no       | `connectionTimeout`                 |
+| `SMTP_SOCKET_TIMEOUT_MS`       | no       | `socketTimeout`                     |
+
+Blank values (`""` or whitespace) count as unset. `SMTP_FROM` is **not**
+consumed — a default sender is a message concern; read it yourself.
+
+**Example:**
+
+```ts
+import { createNodemailerTransport, resolveSmtpOptions } from "@marianmeres/send-email";
+
+const transport = createNodemailerTransport(
+	resolveSmtpOptions((key) => Deno.env.get(key)),
+);
+```
+
+---
+
 ## Types
+
+### `EnvGetter`
+
+```ts
+type EnvGetter = (key: string) => string | undefined;
+```
+
+A `key → value` lookup over environment-shaped configuration; return
+`undefined` for an unset key. Typically `(k) => Deno.env.get(k)`, a parsed
+`.env` record wrapped in a function, or a merge of the two.
+
+### `SmtpEnvError`
+
+```ts
+class SmtpEnvError extends Error {
+	name: "SmtpEnvError";
+}
+```
+
+Thrown by [resolveSmtpOptions](#resolvesmtpoptionsenv) for a missing required
+key or a malformed value. A _configuration_ error, not a runtime one — the CLI
+maps it to exit code `2`.
 
 ### `SendOptions`
 

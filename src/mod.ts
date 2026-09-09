@@ -14,6 +14,8 @@
  * ```
  *
  * The library never reads the environment; the CLI is the only layer that does.
+ * (`resolveSmtpOptions()` maps environment-*shaped* values you hand it — a
+ * pure function, nothing ambient.)
  *
  * This module is the **library** entry (and the npm package's `.` export). The
  * **CLI** entry is {@link "./main.ts"}, which re-exports everything here and
@@ -26,3 +28,4 @@ export * from "./types.ts";
 export * from "./transport-nodemailer.ts";
 export * from "./transport-mock.ts";
 export * from "./send-email.ts";
+export * from "./env.ts";
