@@ -291,7 +291,10 @@ export function createNodemailerTransport(
 	options: NodemailerTransportOptions,
 	createTransporter: (
 		config: NodemailerTransportConfig,
-	) => NodemailerLikeTransporter = nodemailer.createTransport,
+	) => NodemailerLikeTransporter = (config) =>
+		// nodemailer's types admit only Buffer attachment content; a plain Uint8Array
+		// is handled identically at runtime, so only the result type is narrowed.
+		nodemailer.createTransport(config) as unknown as NodemailerLikeTransporter,
 ): EmailTransport {
 	const transporter = createTransporter(_toTransportConfig(options));
 

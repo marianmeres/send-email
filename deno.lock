@@ -14,7 +14,7 @@
     "jsr:@std/path@^1.1.4": "1.1.6",
     "jsr:@std/path@^1.1.5": "1.1.6",
     "jsr:@std/path@^1.1.6": "1.1.6",
-    "npm:nodemailer@^9.1.1": "9.1.1"
+    "npm:nodemailer@^10.0.13": "10.0.13"
   },
   "jsr": {
     "@marianmeres/npmbuild@1.16.0": {
@@ -68,8 +68,8 @@
     }
   },
   "npm": {
-    "nodemailer@9.1.1": {
-      "integrity": "sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ=="
+    "nodemailer@10.0.13": {
+      "integrity": "sha512-SzG86OlvcW/NNhUFC6uROMwRTL4n7MswfQqC/T8mhkmnY1YVa23zUEMYi4ijSeXSl9GLz9ZeTJDUatEDuY5FeQ=="
     }
   },
   "workspace": {
@@ -79,7 +79,7 @@
       "jsr:@std/cli@^1.0.32",
       "jsr:@std/dotenv@~0.225.8",
       "jsr:@std/path@^1.1.6",
-      "npm:nodemailer@^9.1.1"
+      "npm:nodemailer@^10.0.13"
     ]
   }
 }

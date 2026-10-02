@@ -72,8 +72,12 @@ tests/
    (a conservative whitelist, never able to clobber `from`/`to`/`subject`).
 5. **Explicit return types + thorough JSDoc on every exported symbol** (this
    package must pass `deno publish` slow-type checks).
-6. `nodemailer` is typed as `any` in Deno (ships no types) — keep exported
-   signatures explicit so inferred `any` never leaks into the public API.
+6. `nodemailer` (v10+) ships its own types, but they admit only `Buffer`
+   attachment content while the public `Attachment` takes `Uint8Array` (which
+   nodemailer handles identically at runtime). The default transporter factory
+   in `createNodemailerTransport` narrows the result type for this — keep that
+   cast confined there, and keep exported signatures on this package's own
+   types, never nodemailer's.
 7. The nodemailer transporter is created **once** (connection reuse).
 
 ## CLI

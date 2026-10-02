@@ -18,7 +18,7 @@
     "@std/cli": "jsr:@std/cli@^1.0.32",
     "@std/dotenv": "jsr:@std/dotenv@^0.225.8",
     "@std/path": "jsr:@std/path@^1.1.6",
-    "nodemailer": "npm:nodemailer@^9.1.1"
+    "nodemailer": "npm:nodemailer@^10.0.13"
   },
   "fmt": {
     "useTabs": true,
