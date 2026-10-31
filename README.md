@@ -24,21 +24,21 @@ queueing, persistence, templating, retries, or DB. Those belong a layer up (see
 ## Installation
 
 ```bash
+# npm
+npm install @marianmeres/send-email
+
 # Deno (JSR)
 deno add jsr:@marianmeres/send-email
-
-# npm
-npx jsr add @marianmeres/send-email
 ```
 
 Or run the CLI with no install at all:
 
 ```bash
-deno run -A jsr:@marianmeres/send-email --help
+npx @marianmeres/send-email --help
 ```
 
-> The npm package ships the **library** (`send`, the transports). The bundled
-> **CLI** is a Deno/JSR feature — run it via `deno run -A jsr:…` as above.
+> Both registries ship the library and the CLI. The npm package needs Node >= 24.12;
+> on Deno the CLI runs as `deno run -A jsr:@marianmeres/send-email …`.
 
 ## Library usage
 
@@ -100,7 +100,7 @@ reads the environment itself:
 import { createNodemailerTransport, resolveSmtpOptions } from "@marianmeres/send-email";
 
 const transport = createNodemailerTransport(
-	resolveSmtpOptions((key) => Deno.env.get(key)),
+	resolveSmtpOptions((key) => process.env[key]),
 );
 ```
 
@@ -109,30 +109,32 @@ does not consume `SMTP_FROM` (a message concern, not a transport one).
 
 ## CLI usage
 
-The bare module is the CLI entrypoint. Credentials come **only** from the
-environment — never from flags (flags leak into the process table and shell
-history).
+The package ships a `send-email` command. Run it with
+`npx @marianmeres/send-email …`, or install it globally to get `send-email` on your
+`PATH`:
+
+```bash
+npm install -g @marianmeres/send-email
+```
+
+Credentials come **only** from the environment — never from flags (flags leak into the
+process table and shell history).
 
 ```bash
 # Send
-deno run -A jsr:@marianmeres/send-email send \
-	--to a@b.com --subject "Hi" --text "Hello"
+send-email send --to a@b.com --subject "Hi" --text "Hello"
 
 # Verify SMTP config without sending (connect + auth handshake only)
-deno run -A jsr:@marianmeres/send-email verify
+send-email verify
 
 # Pipe a body in
-report | deno run -A jsr:@marianmeres/send-email send --to me@x.com -s Report
+report | send-email send --to me@x.com -s Report
 
 # Machine-readable, and a dry run that sends nothing
-deno run -A jsr:@marianmeres/send-email send --to a@b.com --text hi --dry-run --json
+send-email send --to a@b.com --text hi --dry-run --json
 ```
 
-Install it as a command:
-
-```bash
-deno install -A -n send-email jsr:@marianmeres/send-email
-```
+On Deno, `deno run -A jsr:@marianmeres/send-email` takes the same arguments.
 
 ### Commands
 
@@ -143,14 +145,17 @@ deno install -A -n send-email jsr:@marianmeres/send-email
 | `help`    | Usage. Also `--help` / `-h`.                                                                          |
 | `version` | Print the package version. Also `--version`.                                                          |
 
-Exit codes: `0` success, `1` runtime failure, `2` usage error.
+Exit codes: `0` success, `1` runtime failure, `2` usage error (including an unknown
+flag, or a flag missing its value).
 
 See [API.md](API.md#cli) for the full flag reference.
 
 ## Environment
 
 The CLI builds the SMTP transport from these variables (loaded from `./.env`,
-or `--env-file <path>`). Process env takes precedence over the `.env` file.
+or `--env-file <path>`). Process env takes precedence over the `.env` file. The
+file is parsed by Node's `util.parseEnv`, the rules of `node --env-file`: quotes and
+`#` comments are understood, `${VAR}` references are not expanded.
 
 | Variable                       | Required | Notes                                          |
 | ------------------------------ | -------- | ---------------------------------------------- |
@@ -173,13 +178,32 @@ This package is the bottom layer. Higher-level email **systems** (service,
 queue, DB-backed collections, templating) are intended to **consume** it: such a
 consumer's SMTP transport shrinks to a thin adapter that maps its own (often
 DB-shaped, snake_case) payload onto this package's `send()`, dropping its direct
-`npm:nodemailer` dependency in favor of this one. Message types stay parallel on
+`nodemailer` dependency in favor of this one. Message types stay parallel on
 purpose — this package is clean camelCase; a consumer's payload can be whatever
 its storage needs.
 
 ## API
 
 See [API.md](API.md) for the complete library and CLI reference.
+
+## Development
+
+Node LTS (`.node-version`), pnpm, Biome, `node:test`. The source is erasable-only
+TypeScript that Node runs directly; `dist/` is built only for publishing to npm. JSR is
+served the `.ts` source (`jsr.json`).
+
+| Command                             | Does                                                          |
+| ----------------------------------- | ------------------------------------------------------------- |
+| `pnpm install`                      | installs the dev tooling                                      |
+| `pnpm test` / `pnpm run test:watch` | `node --test` over `tests/**/*.test.ts`                       |
+| `pnpm run test:deno`                | the same suite on Deno, the CLI e2e run through the JSR entry |
+| `pnpm run typecheck`                | `tsc --noEmit` over `src`, `tests` and `scripts`              |
+| `pnpm run lint` / `pnpm run format` | `biome check .` read-only / with `--write`                    |
+| `pnpm run ci`                       | typecheck + lint + test + smoke, what CI runs                 |
+| `pnpm run build`                    | `tsc -p tsconfig.build.json` → `dist/`                        |
+| `pnpm run smoke`                    | builds, packs and runs the npm tarball in a temp project      |
+| `pnpm run jsr:check`                | `deno publish --dry-run` with the `package.json` version      |
+| `pnpm run rp` / `pnpm run rpm`      | patch / minor release, then publish to npm and JSR            |
 
 ## License
 

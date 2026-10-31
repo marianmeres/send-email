@@ -1,0 +1,11 @@
+{
+  "name": "@marianmeres/send-email",
+  "exports": "./src/main.ts",
+  "imports": {
+    "nodemailer": "npm:nodemailer@^10.0.13"
+  },
+  "publish": {
+    "include": ["src/**/*.ts", "README.md", "API.md", "AGENTS.md", "LICENSE"],
+    "exclude": ["src/bin.ts"]
+  }
+}

@@ -1,22 +1,27 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { resolveSmtpOptions, SmtpEnvError } from "../src/env.ts";
 
 const envFrom = (rec: Record<string, string>) => (k: string) => rec[k];
 
-Deno.test("resolveSmtpOptions: minimal — host only, port defaults to 587", () => {
-	assertEquals(resolveSmtpOptions(envFrom({ SMTP_HOST: "smtp.x" })), {
+test("resolveSmtpOptions: minimal — host only, port defaults to 587", () => {
+	assert.deepEqual(resolveSmtpOptions(envFrom({ SMTP_HOST: "smtp.x" })), {
 		host: "smtp.x",
 		port: 587,
 	});
 });
 
-Deno.test("resolveSmtpOptions: missing SMTP_HOST → SmtpEnvError", () => {
-	const e = assertThrows(() => resolveSmtpOptions(envFrom({})), SmtpEnvError);
-	assertEquals(e.name, "SmtpEnvError");
-	assertEquals(e.message.includes("SMTP_HOST"), true);
+test("resolveSmtpOptions: missing SMTP_HOST → SmtpEnvError", () => {
+	assert.throws(
+		() => resolveSmtpOptions(envFrom({})),
+		(e) =>
+			e instanceof SmtpEnvError &&
+			e.name === "SmtpEnvError" &&
+			e.message.includes("SMTP_HOST"),
+	);
 });
 
-Deno.test("resolveSmtpOptions: full mapping", () => {
+test("resolveSmtpOptions: full mapping", () => {
 	const options = resolveSmtpOptions(envFrom({
 		SMTP_HOST: "smtp.x",
 		SMTP_PORT: "465",
@@ -29,7 +34,7 @@ Deno.test("resolveSmtpOptions: full mapping", () => {
 		SMTP_CONNECTION_TIMEOUT_MS: "1000",
 		SMTP_SOCKET_TIMEOUT_MS: "2000",
 	}));
-	assertEquals(options, {
+	assert.deepEqual(options, {
 		host: "smtp.x",
 		port: 465,
 		secure: true,
@@ -41,14 +46,14 @@ Deno.test("resolveSmtpOptions: full mapping", () => {
 	});
 });
 
-Deno.test("resolveSmtpOptions: auth is set when only one of user/pass is present", () => {
-	assertEquals(
+test("resolveSmtpOptions: auth is set when only one of user/pass is present", () => {
+	assert.deepEqual(
 		resolveSmtpOptions(envFrom({ SMTP_HOST: "h", SMTP_USER: "u" })).auth,
 		{ user: "u", pass: "" },
 	);
 });
 
-Deno.test("resolveSmtpOptions: blank optional values are treated as unset", () => {
+test("resolveSmtpOptions: blank optional values are treated as unset", () => {
 	const options = resolveSmtpOptions(envFrom({
 		SMTP_HOST: "h",
 		SMTP_PORT: "",
@@ -56,51 +61,46 @@ Deno.test("resolveSmtpOptions: blank optional values are treated as unset", () =
 		SMTP_SERVERNAME: "",
 		SMTP_REPLY_TO: "",
 	}));
-	assertEquals(options, { host: "h", port: 587 });
+	assert.deepEqual(options, { host: "h", port: 587 });
 });
 
-Deno.test("resolveSmtpOptions: SMTP_FROM is not consumed", () => {
+test("resolveSmtpOptions: SMTP_FROM is not consumed", () => {
 	const asked: string[] = [];
 	resolveSmtpOptions((k) => {
 		asked.push(k);
 		return k === "SMTP_HOST" ? "h" : undefined;
 	});
-	assertEquals(asked.includes("SMTP_FROM"), false);
+	assert.equal(asked.includes("SMTP_FROM"), false);
 });
 
-Deno.test("resolveSmtpOptions: invalid boolean → SmtpEnvError naming the key", () => {
-	const e = assertThrows(
+test("resolveSmtpOptions: invalid boolean → SmtpEnvError naming the key", () => {
+	assert.throws(
 		() => resolveSmtpOptions(envFrom({ SMTP_HOST: "h", SMTP_SECURE: "maybe" })),
-		SmtpEnvError,
+		{ name: "SmtpEnvError", message: /SMTP_SECURE.*invalid boolean value/ },
 	);
-	assertEquals(e.message.includes("SMTP_SECURE"), true);
-	assertEquals(e.message.includes("invalid boolean value"), true);
 });
 
-Deno.test("resolveSmtpOptions: non-decimal / out-of-range port → SmtpEnvError", () => {
-	assertThrows(
+test("resolveSmtpOptions: non-decimal / out-of-range port → SmtpEnvError", () => {
+	assert.throws(
 		() => resolveSmtpOptions(envFrom({ SMTP_HOST: "h", SMTP_PORT: "0x1bb" })),
-		SmtpEnvError,
-		"SMTP_PORT",
+		{ name: "SmtpEnvError", message: /SMTP_PORT/ },
 	);
-	assertThrows(
+	assert.throws(
 		() => resolveSmtpOptions(envFrom({ SMTP_HOST: "h", SMTP_PORT: "70000" })),
-		SmtpEnvError,
-		"between 1 and 65535",
+		{ name: "SmtpEnvError", message: /between 1 and 65535/ },
 	);
-	assertThrows(
+	assert.throws(
 		() => resolveSmtpOptions(envFrom({ SMTP_HOST: "h", SMTP_PORT: "-1" })),
 		SmtpEnvError,
 	);
 });
 
-Deno.test("resolveSmtpOptions: timeouts must be non-negative integers", () => {
-	assertThrows(
+test("resolveSmtpOptions: timeouts must be non-negative integers", () => {
+	assert.throws(
 		() =>
 			resolveSmtpOptions(
 				envFrom({ SMTP_HOST: "h", SMTP_CONNECTION_TIMEOUT_MS: "1e3" }),
 			),
-		SmtpEnvError,
-		"SMTP_CONNECTION_TIMEOUT_MS",
+		{ name: "SmtpEnvError", message: /SMTP_CONNECTION_TIMEOUT_MS/ },
 	);
 });

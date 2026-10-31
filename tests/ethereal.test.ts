@@ -3,23 +3,24 @@
  * captures messages without delivering them).
  *
  * These require network access and are SKIPPED by default. To run them, flip
- * `ignore` to `false` below (or delete it) and run:
+ * `skip` to `false` below and run:
  *
- *   deno test -A tests/ethereal.test.ts
+ *   node --test tests/ethereal.test.ts
  *
  * Sent messages are viewable at https://ethereal.email using the logged
  * credentials.
  */
 
-import { assert, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import nodemailer from "nodemailer";
 import { createNodemailerTransport } from "../src/transport-nodemailer.ts";
 import { send } from "../src/send-email.ts";
 
 // Set to `false` to actually run these tests.
-const ignore = true;
+const skip = true;
 
-/** Per-test timeout — `Deno.test` has none, and SMTP sockets can hang. */
+/** Per-test timeout: SMTP sockets can hang, and a hung one must fail the test. */
 const TEST_TIMEOUT_MS = 15_000;
 
 /** Rejects if `promise` does not settle within `ms`. */
@@ -33,10 +34,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	}) as Promise<T>;
 }
 
-Deno.test({
-	name: "ethereal: send() delivers and returns an externalId",
-	ignore,
-	fn: async () => {
+test("ethereal: send() delivers and returns an externalId", { skip }, async () => {
 		const account = await nodemailer.createTestAccount();
 		console.log(`\nEthereal user: ${account.user} (https://ethereal.email)\n`);
 
@@ -63,13 +61,9 @@ Deno.test({
 
 		assert(result.externalId, "expected an externalId");
 		console.log(`Message id: ${result.externalId}`);
-	},
 });
 
-Deno.test({
-	name: "ethereal: verify() succeeds with valid credentials",
-	ignore,
-	fn: async () => {
+test("ethereal: verify() succeeds with valid credentials", { skip }, async () => {
 		const account = await nodemailer.createTestAccount();
 		const transport = createNodemailerTransport({
 			host: account.smtp.host,
@@ -79,13 +73,9 @@ Deno.test({
 			connectionTimeout: 10_000,
 		});
 		await withTimeout(transport.verify!(), TEST_TIMEOUT_MS);
-	},
 });
 
-Deno.test({
-	name: "ethereal: verify() rejects with invalid credentials",
-	ignore,
-	fn: async () => {
+test("ethereal: verify() rejects with invalid credentials", { skip }, async () => {
 		const transport = createNodemailerTransport({
 			host: "smtp.ethereal.email",
 			port: 587,
@@ -94,8 +84,7 @@ Deno.test({
 			connectionTimeout: 5_000,
 		});
 		await withTimeout(
-			assertRejects(() => transport.verify!(), Error),
+			assert.rejects(() => transport.verify!(), Error),
 			TEST_TIMEOUT_MS,
 		);
-	},
 });

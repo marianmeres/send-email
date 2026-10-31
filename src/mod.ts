@@ -18,8 +18,9 @@
  * pure function, nothing ambient.)
  *
  * This module is the **library** entry (and the npm package's `.` export). The
- * **CLI** entry is {@link "./main.ts"}, which re-exports everything here and
- * additionally runs the CLI when executed directly (`deno run`).
+ * npm `send-email` bin is `bin.ts`; the JSR entry is {@link "./main.ts"}, which
+ * re-exports everything here and additionally runs the CLI when executed
+ * directly (`deno run -A jsr:@marianmeres/send-email`).
  *
  * @module
  */

@@ -102,7 +102,7 @@ transport.sentEmails.length; // 1
 
 Maps environment-**shaped** values to [NodemailerTransportOptions](#nodemailertransportoptions).
 Pure: it only ever calls the `env` lookup you pass in and never touches
-`Deno.env`, `process.env`, or a `.env` file — so exporting it keeps the
+`process.env` or a `.env` file — so exporting it keeps the
 library's "never reads the environment" invariant intact. The CLI uses this
 exact function; consumers that want the same `SMTP_*` vocabulary should too.
 
@@ -140,7 +140,7 @@ consumed — a default sender is a message concern; read it yourself.
 import { createNodemailerTransport, resolveSmtpOptions } from "@marianmeres/send-email";
 
 const transport = createNodemailerTransport(
-	resolveSmtpOptions((key) => Deno.env.get(key)),
+	resolveSmtpOptions((key) => process.env[key]),
 );
 ```
 
@@ -155,7 +155,7 @@ type EnvGetter = (key: string) => string | undefined;
 ```
 
 A `key → value` lookup over environment-shaped configuration; return
-`undefined` for an unset key. Typically `(k) => Deno.env.get(k)`, a parsed
+`undefined` for an unset key. Typically `(k) => process.env[k]`, a parsed
 `.env` record wrapped in a function, or a merge of the two.
 
 ### `SmtpEnvError`
@@ -304,11 +304,16 @@ core fields (`from`, `to`, `subject`, …).
 
 ## CLI
 
-The bare module is also the CLI entrypoint:
+The npm package's `send-email` bin; on JSR, the bare module entrypoint:
 
 ```bash
-deno run -A jsr:@marianmeres/send-email <command> [options]
+send-email <command> [options]                           # installed (npm install -g)
+npx @marianmeres/send-email <command> [options]          # no install
+deno run -A jsr:@marianmeres/send-email <command> [options]  # Deno
 ```
+
+Flags are parsed strictly: an unknown flag, or a flag missing its value, is a usage
+error (exit `2`). A value that starts with `-` goes in the `--flag=value` form.
 
 ### Commands
 
@@ -336,7 +341,7 @@ deno run -A jsr:@marianmeres/send-email <command> [options]
 | `--attach <path>` (repeatable) | `attachments` | Each becomes `{ path, filename: basename }`.           |
 | `--dry-run`                    | —             | Use the mock transport; print what would be sent.      |
 | `--json`                       | —             | Machine-readable output.                               |
-| `--env-file <path>`            | —             | `.env` file to load (default `./.env`).                |
+| `--env-file <path>`            | —             | `.env` file to load (default `./.env`), see below.     |
 
 **Body resolution order:** body file flag → inline body flag → piped stdin
 (when no body flag is given and stdin is not a TTY; plain text by default, or
@@ -357,4 +362,8 @@ from the environment.
 
 ### Environment
 
-See the [Environment table in the README](README.md#environment).
+See the [Environment table in the README](README.md#environment). Process env wins
+over the `.env` file (a present-but-empty process value counts as unset). The file
+is parsed by Node's `util.parseEnv` — the rules of `node --env-file`: no `${VAR}`
+expansion — after a leading BOM is dropped. A missing default `./.env` is fine; a
+missing explicit `--env-file` is a usage error.

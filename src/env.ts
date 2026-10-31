@@ -1,7 +1,7 @@
 /**
  * Environment-shaped configuration → {@link NodemailerTransportOptions}.
  *
- * This module is **pure**: it never touches `Deno.env`, `process.env`, or a
+ * This module is **pure**: it never touches `process.env` or a
  * `.env` file. The caller supplies an {@link EnvGetter} (any `key → value`
  * lookup) and gets validated transport options back. That keeps the library's
  * hard invariant — *the library never reads the environment* — while letting
@@ -12,7 +12,7 @@
  * import { createNodemailerTransport, resolveSmtpOptions } from "@marianmeres/send-email";
  *
  * const transport = createNodemailerTransport(
- * 	resolveSmtpOptions((key) => Deno.env.get(key)),
+ * 	resolveSmtpOptions((key) => process.env[key]),
  * );
  * ```
  *
@@ -23,7 +23,7 @@ import type { NodemailerTransportOptions } from "./transport-nodemailer.ts";
 
 /**
  * A `key → value` lookup over environment-shaped configuration. Return
- * `undefined` for an unset key. Typically `(k) => Deno.env.get(k)`, a parsed
+ * `undefined` for an unset key. Typically `(k) => process.env[k]`, a parsed
  * `.env` record wrapped in a function, or a merge of the two.
  */
 export type EnvGetter = (key: string) => string | undefined;
@@ -111,7 +111,7 @@ function parseIntEnv(
  * ```ts
  * import { createNodemailerTransport, resolveSmtpOptions } from "@marianmeres/send-email";
  *
- * const options = resolveSmtpOptions((key) => Deno.env.get(key));
+ * const options = resolveSmtpOptions((key) => process.env[key]);
  * const transport = createNodemailerTransport(options);
  * ```
  */

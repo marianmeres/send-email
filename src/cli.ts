@@ -1,15 +1,16 @@
 /**
  * First-class CLI for `@marianmeres/send-email`.
  *
- * The dream invocation is the bare module entrypoint:
+ * From npm it is the `send-email` bin (`bin.ts`); from JSR, the bare module
+ * entrypoint (`main.ts`):
  *
  * ```bash
- * deno run -A jsr:@marianmeres/send-email send --to a@b.com --subject "Hi" --text "Hello"
+ * npx @marianmeres/send-email send --to a@b.com --subject "Hi" --text "Hello"
  * deno run -A jsr:@marianmeres/send-email verify
  * ```
  *
  * All logic lives in {@link runCli}, which takes an args array and returns an
- * exit code (it never calls `Deno.exit`), so it is unit-testable without
+ * exit code (it never calls `process.exit`), so it is unit-testable without
  * spawning a process. Every external dependency (stdout/stderr, process env,
  * `.env` loading, stdin, transport construction) is injectable via {@link CliIo}.
  *
@@ -20,10 +21,12 @@
  * @module
  */
 
-import { parseArgs } from "@std/cli/parse-args";
-import { parse as parseDotenv } from "@std/dotenv";
-import { basename } from "@std/path";
-import denoJson from "../deno.json" with { type: "json" };
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
+import process from "node:process";
+import { text as streamText } from "node:stream/consumers";
+import { isatty } from "node:tty";
+import { parseArgs, parseEnv } from "node:util";
 import { resolveSmtpOptions, SmtpEnvError } from "./env.ts";
 import { createMockTransport } from "./transport-mock.ts";
 import {
@@ -31,14 +34,12 @@ import {
 	type NodemailerTransportOptions,
 } from "./transport-nodemailer.ts";
 import type { EmailTransport, SendOptions } from "./types.ts";
-
-/** Package version, read from `deno.json` (works when published to JSR). */
-const VERSION: string = denoJson.version;
+import { VERSION } from "./version.ts";
 
 /**
  * Injectable I/O + collaborators for {@link runCli}. All fields are optional;
- * omitted ones fall back to real implementations (stdout/stderr, `Deno.env`,
- * `.env` file loading, `Deno.stdin`, the nodemailer transport). Tests override
+ * omitted ones fall back to real implementations (stdout/stderr, `process.env`,
+ * `.env` file loading, `process.stdin`, the nodemailer transport). Tests override
  * them to stay hermetic and offline.
  */
 export interface CliIo {
@@ -46,14 +47,14 @@ export interface CliIo {
 	out?: (line: string) => void;
 	/** stderr line writer. Default: `console.error`. */
 	err?: (line: string) => void;
-	/** Process-env getter. Default: `Deno.env.get`. */
+	/** Process-env getter. Default: reads `process.env`. */
 	env?: (key: string) => string | undefined;
-	/** Loads a `.env` file into a record. Default: read + parse via `@std/dotenv`. */
+	/** Loads a `.env` file into a record. Default: read + parse via `util.parseEnv`. */
 	loadEnv?: (
 		envPath: string,
 		explicit: boolean,
 	) => Promise<Record<string, string>>;
-	/** stdin probe + reader. Default: wraps `Deno.stdin`. */
+	/** stdin probe + reader. Default: wraps `process.stdin`. */
 	stdin?: { isTerminal(): boolean; read(): Promise<string> };
 	/** SMTP transport factory. Default: {@link createNodemailerTransport}. */
 	createTransport?: (options: NodemailerTransportOptions) => EmailTransport;
@@ -85,7 +86,10 @@ const HELP: string = `
 send-email v${VERSION} — send an email from the library or the shell.
 
 Usage:
-  deno run -A jsr:@marianmeres/send-email <command> [options]
+  send-email <command> [options]
+
+  Without installing: npx @marianmeres/send-email <command> [options]
+  On Deno (JSR):      deno run -A jsr:@marianmeres/send-email <command> [options]
 
 Commands:
   send       Send one message (SMTP transport resolved from env).
@@ -113,7 +117,7 @@ send options:
 Body from stdin:
   If no body flag is given and stdin is piped, the body is read from stdin
   (plain text by default; add a bare --html to send it as HTML):
-    report | deno run -A jsr:@marianmeres/send-email send --to me@x.com -s Report
+    report | send-email send --to me@x.com -s Report
 
 Environment (SMTP transport):
   SMTP_HOST (required), SMTP_PORT (default 587), SMTP_SECURE,
@@ -126,38 +130,50 @@ Output:
   Errors to stderr. Exit: 0 ok, 1 runtime failure, 2 usage error.
 `.trim();
 
-/** Default stdin probe/reader over `Deno.stdin`. */
+/** Default stdin probe/reader over `process.stdin`. */
 const defaultStdin: { isTerminal(): boolean; read(): Promise<string> } = {
 	isTerminal(): boolean {
-		try {
-			return Deno.stdin.isTerminal();
-		} catch {
-			// No stdin handle available → behave like an interactive terminal
-			// (i.e. do not attempt to read a body from stdin).
-			return true;
-		}
+		// Probes fd 0 without touching `process.stdin`, which would open a handle.
+		return isatty(0);
 	},
 	async read(): Promise<string> {
-		return await new Response(Deno.stdin.readable).text();
+		return await streamText(process.stdin);
 	},
 };
 
-/** Default `.env` loader: read the file and parse it with `@std/dotenv`. */
+/**
+ * Reads a file as UTF-8 text. Decoding through `TextDecoder` drops a leading BOM,
+ * which `readFile(path, "utf8")` would keep — glued to the first `.env` key, or at
+ * the start of a body.
+ */
+async function readTextFile(path: string): Promise<string> {
+	return new TextDecoder().decode(await readFile(path));
+}
+
+/** Whether `e` is a `node:fs` file-not-found error. */
+function isNotFound(e: unknown): boolean {
+	return e instanceof Error && "code" in e && e.code === "ENOENT";
+}
+
+/**
+ * Default `.env` loader: read the file and parse it with `util.parseEnv` — the
+ * rules of Node's own `--env-file` (no `${VAR}` expansion).
+ */
 async function defaultLoadEnv(
 	envPath: string,
 	explicit: boolean,
 ): Promise<Record<string, string>> {
 	let text: string;
 	try {
-		text = await Deno.readTextFile(envPath);
+		text = await readTextFile(envPath);
 	} catch (e) {
-		if (e instanceof Deno.errors.NotFound) {
+		if (isNotFound(e)) {
 			if (explicit) throw new UsageError(`env file not found: ${envPath}`);
 			return {};
 		}
 		throw e;
 	}
-	return parseDotenv(text);
+	return parseEnv(text) as Record<string, string>;
 }
 
 /** Fills in defaults for any omitted {@link CliIo} collaborators. */
@@ -165,7 +181,7 @@ function resolveIo(io: CliIo): ResolvedIo {
 	return {
 		out: io.out ?? ((line: string) => console.log(line)),
 		err: io.err ?? ((line: string) => console.error(line)),
-		env: io.env ?? ((key: string) => Deno.env.get(key)),
+		env: io.env ?? ((key: string) => process.env[key]),
 		loadEnv: io.loadEnv ?? defaultLoadEnv,
 		stdin: io.stdin ?? defaultStdin,
 		makeTransport: io.createTransport ?? createNodemailerTransport,
@@ -196,17 +212,62 @@ function collectStrings(value: unknown): string[] {
 /** Reads a body from a file, mapping not-found to a friendly usage error. */
 async function readFileBody(path: string): Promise<string> {
 	try {
-		return await Deno.readTextFile(path);
+		return await readTextFile(path);
 	} catch (e) {
-		if (e instanceof Deno.errors.NotFound) {
+		if (isNotFound(e)) {
 			throw new UsageError(`file not found: ${path}`);
 		}
 		throw e;
 	}
 }
 
-// deno-lint-ignore no-explicit-any -- parseArgs returns a loosely-typed bag.
-type ParsedArgs = Record<string, any>;
+/**
+ * Rewrites a bare `--html` (the last argument, or followed by another flag) to
+ * `--html=`, so it parses as `""`: a bare `--html` marks a piped stdin body as HTML.
+ * `parseArgs` would otherwise take the next flag as its value, or reject the flag as
+ * missing one. Arguments after a `--` terminator are left alone.
+ */
+function bareHtmlAsEmpty(args: string[]): string[] {
+	const end = args.indexOf("--");
+	return args.map((arg, i) => {
+		if (arg !== "--html" || (end !== -1 && i > end)) return arg;
+		const next = args[i + 1];
+		return next === undefined || next.startsWith("-") ? "--html=" : arg;
+	});
+}
+
+/**
+ * Parses the argument vector. Strict: an unknown flag, or a flag missing its value,
+ * throws (→ usage error, exit `2`).
+ */
+function parse(args: string[]) {
+	return parseArgs({
+		args: bareHtmlAsEmpty(args),
+		strict: true,
+		allowPositionals: true,
+		options: {
+			from: { type: "string" },
+			subject: { type: "string", short: "s" },
+			text: { type: "string" },
+			html: { type: "string" },
+			"html-file": { type: "string" },
+			"text-file": { type: "string" },
+			"reply-to": { type: "string" },
+			"env-file": { type: "string" },
+			to: { type: "string", multiple: true },
+			cc: { type: "string", multiple: true },
+			bcc: { type: "string", multiple: true },
+			attach: { type: "string", multiple: true },
+			json: { type: "boolean" },
+			"dry-run": { type: "boolean" },
+			help: { type: "boolean", short: "h" },
+			version: { type: "boolean" },
+		},
+	});
+}
+
+/** The parsed flags. */
+type ParsedArgs = ReturnType<typeof parse>["values"];
 
 /** Builds a {@link SendOptions} from parsed CLI args, env defaults, and stdin. */
 async function buildMessage(
@@ -215,7 +276,8 @@ async function buildMessage(
 	stdin: { isTerminal(): boolean; read(): Promise<string> },
 ): Promise<SendOptions> {
 	const to = collectAddresses(parsed.to);
-	if (to.length === 0) {
+	const [firstTo] = to;
+	if (firstTo === undefined) {
 		throw new UsageError("at least one --to recipient is required");
 	}
 
@@ -227,7 +289,7 @@ async function buildMessage(
 	}
 
 	const message: SendOptions = {
-		to: to.length === 1 ? to[0] : to,
+		to: to.length === 1 ? firstTo : to,
 		from,
 		subject: typeof parsed.subject === "string" ? parsed.subject : "",
 	};
@@ -267,8 +329,9 @@ async function buildMessage(
 	if (!hasBody && !stdin.isTerminal()) {
 		const piped = await stdin.read();
 		if (piped.length > 0) {
-			// A bare `--html` (present but empty) marks the piped body as HTML.
-			const asHtml = htmlFlag === "" || htmlFlag === true;
+			// A bare `--html` (parsed as "", see bareHtmlAsEmpty) marks the piped
+			// body as HTML.
+			const asHtml = htmlFlag === "";
 			if (asHtml) message.html = piped;
 			else message.text = piped;
 		}
@@ -402,31 +465,30 @@ async function handleVerify(parsed: ParsedArgs, io: ResolvedIo): Promise<number>
 }
 
 /**
- * Runs the CLI and returns a process exit code. Never calls `Deno.exit`.
+ * Runs the CLI and returns a process exit code. Never calls `process.exit`.
  *
- * @param args - Argument vector (e.g. `Deno.args`).
+ * @param args - Argument vector (e.g. `process.argv.slice(2)`).
  * @param io - Optional injected I/O + collaborators (see {@link CliIo}).
  * @returns The exit code: `0` success, `1` runtime failure, `2` usage error.
  */
 export async function runCli(args: string[], io: CliIo = {}): Promise<number> {
 	const resolved = resolveIo(io);
-	const parsed = parseArgs(args, {
-		string: [
-			"from",
-			"subject",
-			"text",
-			"html",
-			"html-file",
-			"text-file",
-			"reply-to",
-			"env-file",
-		],
-		boolean: ["json", "dry-run", "help", "version"],
-		collect: ["to", "cc", "bcc", "attach"],
-		alias: { h: "help", s: "subject" },
-	});
-
-	const command = parsed._[0] !== undefined ? String(parsed._[0]) : undefined;
+	let parsed: ParsedArgs;
+	let command: string | undefined;
+	try {
+		const result = parse(args);
+		parsed = result.values;
+		command = result.positionals[0];
+	} catch (e) {
+		const message = e instanceof Error ? e.message : String(e);
+		if (args.includes("--json")) {
+			resolved.err(JSON.stringify({ ok: false, error: message }));
+		} else {
+			resolved.err(`Error: ${message}`);
+			resolved.err("Run with --help for usage.");
+		}
+		return 2;
+	}
 
 	// Fast paths that never throw.
 	if (parsed.version === true) {

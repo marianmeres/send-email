@@ -3,7 +3,7 @@
  *
  * This is the single, tested "send an email over SMTP" path that the whole
  * ecosystem (and any throwaway script or the bundled CLI) shares. It wraps
- * `npm:nodemailer`, instantiating the underlying transporter **once** so the
+ * `nodemailer`, instantiating the underlying transporter **once** so the
  * connection is reused across many sends.
  *
  * @module
