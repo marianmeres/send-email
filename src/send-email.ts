@@ -36,9 +36,7 @@ function resolveTransport(config: SendConfig): EmailTransport {
 	const hasTransport = config.transport !== undefined;
 	const hasSmtp = config.smtp !== undefined;
 	if (hasTransport && hasSmtp) {
-		throw new Error(
-			"send(): provide either `transport` or `smtp`, not both.",
-		);
+		throw new Error("send(): provide either `transport` or `smtp`, not both.");
 	}
 	if (config.transport) return config.transport;
 	if (config.smtp) return createNodemailerTransport(config.smtp);

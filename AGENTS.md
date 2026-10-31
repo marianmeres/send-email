@@ -130,14 +130,14 @@ help | version
 ## Before Making Changes
 
 - [ ] Keep the library env-free; `.env` loading and `process.env` stay in `cli.ts`
-      only. `env.ts` maps a getter → options and must stay pure.
+  only. `env.ts` maps a getter → options and must stay pure.
 - [ ] Changing what an `SMTP_*` key means? Change it in `env.ts` (the CLI and
-      every downstream tool inherit it) and update the README env table + API.md.
+  every downstream tool inherit it) and update the README env table + API.md.
 - [ ] New `SendOptions` field? Justify it vs. `providerOptions` first.
 - [ ] CLI change: `HELP` in `src/cli.ts`, README "CLI usage", API.md "CLI", a unit
-      and/or e2e test.
+  and/or e2e test.
 - [ ] `pnpm run format`, then `pnpm run ci`. Touching the CLI or the JSR surface:
-      also `pnpm run test:deno` and `pnpm run jsr:check`.
+  also `pnpm run test:deno` and `pnpm run jsr:check`.
 - [ ] Update [README.md](README.md) / [API.md](API.md) if the public API changed.
 
 ## Documentation

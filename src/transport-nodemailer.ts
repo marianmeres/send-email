@@ -150,9 +150,7 @@ export const PROVIDER_OPTION_WHITELIST: readonly string[] = [
 ];
 
 /** Joins a single address or an address list into a comma-separated string. */
-function joinAddresses(
-	value: string | string[] | undefined,
-): string | undefined {
+function joinAddresses(value: string | string[] | undefined): string | undefined {
 	if (value === undefined) return undefined;
 	return Array.isArray(value) ? value.join(", ") : value;
 }

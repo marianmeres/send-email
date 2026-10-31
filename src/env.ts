@@ -70,9 +70,7 @@ function parseIntEnv(
 	if (value === undefined || value.trim() === "") return undefined;
 	const trimmed = value.trim();
 	if (!/^\d+$/.test(trimmed)) {
-		throw new SmtpEnvError(
-			`${name} must be a non-negative integer, got "${value}"`,
-		);
+		throw new SmtpEnvError(`${name} must be a non-negative integer, got "${value}"`);
 	}
 	const n = Number(trimmed);
 	if (range && (n < range.min || n > range.max)) {
@@ -125,8 +123,7 @@ export function resolveSmtpOptions(env: EnvGetter): NodemailerTransportOptions {
 
 	const options: NodemailerTransportOptions = {
 		host,
-		port: parseIntEnv(env("SMTP_PORT"), "SMTP_PORT", { min: 1, max: 65535 }) ??
-			587,
+		port: parseIntEnv(env("SMTP_PORT"), "SMTP_PORT", { min: 1, max: 65535 }) ?? 587,
 	};
 
 	const secure = parseBoolEnv(env("SMTP_SECURE"), "SMTP_SECURE");

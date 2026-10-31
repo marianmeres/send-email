@@ -21,16 +21,20 @@ function makeIo(overrides: Partial<CliIo> = {}): {
 		err: (l) => err.push(l),
 		env: overrides.env ?? (() => undefined),
 		loadEnv: overrides.loadEnv ?? (() => Promise.resolve({})),
-		stdin: overrides.stdin ??
-			{ isTerminal: () => true, read: () => Promise.resolve("") },
+		stdin: overrides.stdin ?? {
+			isTerminal: () => true,
+			read: () => Promise.resolve(""),
+		},
 		createTransport: overrides.createTransport,
 	};
 	return { io, out, err };
 }
 
 /** Env getter from a plain record. */
-const envFrom = (rec: Record<string, string>) => (k: string): string | undefined =>
-	rec[k];
+const envFrom =
+	(rec: Record<string, string>) =>
+	(k: string): string | undefined =>
+		rec[k];
 
 const SMTP_ENV = { SMTP_HOST: "smtp.example.com", SMTP_FROM: "from@example.com" };
 
@@ -97,23 +101,26 @@ test("send: repeatable --to and comma lists flatten into recipients", async () =
 test("send: maps cc/bcc/reply-to/html/attach", async () => {
 	const transport = createMockTransport();
 	const { io } = makeIo({ env: envFrom(SMTP_ENV), createTransport: () => transport });
-	await runCli([
-		"send",
-		"--to",
-		"a@b.com",
-		"--cc",
-		"c@x.com",
-		"--bcc",
-		"d@x.com",
-		"--reply-to",
-		"r@x.com",
-		"--subject",
-		"S",
-		"--html",
-		"<p>h</p>",
-		"--attach",
-		"/tmp/x.pdf",
-	], io);
+	await runCli(
+		[
+			"send",
+			"--to",
+			"a@b.com",
+			"--cc",
+			"c@x.com",
+			"--bcc",
+			"d@x.com",
+			"--reply-to",
+			"r@x.com",
+			"--subject",
+			"S",
+			"--html",
+			"<p>h</p>",
+			"--attach",
+			"/tmp/x.pdf",
+		],
+		io,
+	);
 	const m = transport.getLastEmail();
 	assert.equal(m?.cc, "c@x.com");
 	assert.equal(m?.bcc, "d@x.com");
@@ -297,20 +304,15 @@ test("send: explicit --env-file that does not exist → usage error (exit 2)", a
 	// missing-explicit-file branch.
 	const out: string[] = [];
 	const err: string[] = [];
-	const code = await runCli([
-		"send",
-		"--to",
-		"a@b.com",
-		"--text",
-		"x",
-		"--env-file",
-		"/no/such/.env",
-	], {
-		out: (l) => out.push(l),
-		err: (l) => err.push(l),
-		env: () => undefined,
-		createTransport: () => createMockTransport(),
-	});
+	const code = await runCli(
+		["send", "--to", "a@b.com", "--text", "x", "--env-file", "/no/such/.env"],
+		{
+			out: (l) => out.push(l),
+			err: (l) => err.push(l),
+			env: () => undefined,
+			createTransport: () => createMockTransport(),
+		},
+	);
 	assert.equal(code, 2);
 	assert.match(err.join("\n"), /env file not found/);
 });

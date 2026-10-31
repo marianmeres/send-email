@@ -25,8 +25,8 @@
  * @module
  */
 
-export * from "./types.ts";
-export * from "./transport-nodemailer.ts";
-export * from "./transport-mock.ts";
-export * from "./send-email.ts";
 export * from "./env.ts";
+export * from "./send-email.ts";
+export * from "./transport-mock.ts";
+export * from "./transport-nodemailer.ts";
+export * from "./types.ts";

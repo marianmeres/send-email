@@ -22,18 +22,20 @@ test("resolveSmtpOptions: missing SMTP_HOST → SmtpEnvError", () => {
 });
 
 test("resolveSmtpOptions: full mapping", () => {
-	const options = resolveSmtpOptions(envFrom({
-		SMTP_HOST: "smtp.x",
-		SMTP_PORT: "465",
-		SMTP_SECURE: "true",
-		SMTP_USER: "u",
-		SMTP_PASS: "p",
-		SMTP_REPLY_TO: "r@x.com",
-		SMTP_SERVERNAME: " cert.host ",
-		SMTP_TLS_REJECT_UNAUTHORIZED: "false",
-		SMTP_CONNECTION_TIMEOUT_MS: "1000",
-		SMTP_SOCKET_TIMEOUT_MS: "2000",
-	}));
+	const options = resolveSmtpOptions(
+		envFrom({
+			SMTP_HOST: "smtp.x",
+			SMTP_PORT: "465",
+			SMTP_SECURE: "true",
+			SMTP_USER: "u",
+			SMTP_PASS: "p",
+			SMTP_REPLY_TO: "r@x.com",
+			SMTP_SERVERNAME: " cert.host ",
+			SMTP_TLS_REJECT_UNAUTHORIZED: "false",
+			SMTP_CONNECTION_TIMEOUT_MS: "1000",
+			SMTP_SOCKET_TIMEOUT_MS: "2000",
+		}),
+	);
 	assert.deepEqual(options, {
 		host: "smtp.x",
 		port: 465,
@@ -54,13 +56,15 @@ test("resolveSmtpOptions: auth is set when only one of user/pass is present", ()
 });
 
 test("resolveSmtpOptions: blank optional values are treated as unset", () => {
-	const options = resolveSmtpOptions(envFrom({
-		SMTP_HOST: "h",
-		SMTP_PORT: "",
-		SMTP_SECURE: " ",
-		SMTP_SERVERNAME: "",
-		SMTP_REPLY_TO: "",
-	}));
+	const options = resolveSmtpOptions(
+		envFrom({
+			SMTP_HOST: "h",
+			SMTP_PORT: "",
+			SMTP_SECURE: " ",
+			SMTP_SERVERNAME: "",
+			SMTP_REPLY_TO: "",
+		}),
+	);
 	assert.deepEqual(options, { host: "h", port: 587 });
 });
 

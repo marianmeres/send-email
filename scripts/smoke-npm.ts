@@ -89,7 +89,10 @@ function checkInstalledManifest(dir: string): Manifest {
 	);
 	for (const kind of ["types", "default"]) {
 		const file = pkg.exports?.["."]?.[kind];
-		check(file && existsSync(join(dir, file)), `exports["."].${kind} does not exist: ${file}`);
+		check(
+			file && existsSync(join(dir, file)),
+			`exports["."].${kind} does not exist: ${file}`,
+		);
 	}
 	const bin = pkg.bin?.[BIN];
 	check(bin && existsSync(join(dir, bin)), `bin "${BIN}" does not exist: ${bin}`);
@@ -98,7 +101,10 @@ function checkInstalledManifest(dir: string): Manifest {
 		`nodemailer is not a runtime dependency: ${JSON.stringify(pkg.dependencies)}`,
 	);
 	check(typeof pkg.engines?.node === "string", "engines.node missing");
-	check(!existsSync(join(dir, "dist", "main.js")), "the tarball carries the JSR-only main.js");
+	check(
+		!existsSync(join(dir, "dist", "main.js")),
+		"the tarball carries the JSR-only main.js",
+	);
 	for (const name of REPO_ONLY) {
 		check(!existsSync(join(dir, name)), `the tarball carries "${name}/"`);
 	}
@@ -132,7 +138,13 @@ try {
 
 	run(
 		"npm",
-		["install", "--no-audit", "--no-fund", "--loglevel=error", join(packDir, tarball)],
+		[
+			"install",
+			"--no-audit",
+			"--no-fund",
+			"--loglevel=error",
+			join(packDir, tarball),
+		],
 		project,
 	);
 	const pkg = checkInstalledManifest(join(project, "node_modules", PKG));
@@ -144,11 +156,19 @@ try {
 		Object.entries(process.env).filter(([k]) => !k.startsWith("SMTP_")),
 	);
 	const version = run(bin, ["--version"], project, env).trim();
-	check(version === pkg.version, `--version printed "${version}", expected "${pkg.version}"`);
-	const sent = run(bin, ["send", "--to", "a@b.com", "--text", "hi", "--dry-run", "--json"], project, {
-		...env,
-		SMTP_FROM: "from@example.com",
-	}).trim();
+	check(
+		version === pkg.version,
+		`--version printed "${version}", expected "${pkg.version}"`,
+	);
+	const sent = run(
+		bin,
+		["send", "--to", "a@b.com", "--text", "hi", "--dry-run", "--json"],
+		project,
+		{
+			...env,
+			SMTP_FROM: "from@example.com",
+		},
+	).trim();
 	check(
 		sent === JSON.stringify({ ok: true, externalId: "mock-1", transport: "mock" }),
 		`--dry-run --json printed ${sent}`,

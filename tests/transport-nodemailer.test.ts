@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { NodemailerTransportOptions } from "../src/transport-nodemailer.ts";
 import {
 	_toNodemailerMessage,
 	_toTransportConfig,
 	createNodemailerTransport,
 	PROVIDER_OPTION_WHITELIST,
 } from "../src/transport-nodemailer.ts";
-import type { NodemailerTransportOptions } from "../src/transport-nodemailer.ts";
 import type { SendOptions } from "../src/types.ts";
 
 const baseOptions: NodemailerTransportOptions = { host: "smtp.example.com", port: 587 };
@@ -49,13 +49,16 @@ test("_toTransportConfig: omits unset optional fields", () => {
 });
 
 test("_toNodemailerMessage: maps camelCase body fields", () => {
-	const msg = _toNodemailerMessage({
-		to: "to@example.com",
-		from: "from@example.com",
-		subject: "Subj",
-		html: "<p>h</p>",
-		text: "t",
-	}, baseOptions);
+	const msg = _toNodemailerMessage(
+		{
+			to: "to@example.com",
+			from: "from@example.com",
+			subject: "Subj",
+			html: "<p>h</p>",
+			text: "t",
+		},
+		baseOptions,
+	);
 	assert.equal(msg.to, "to@example.com");
 	assert.equal(msg.from, "from@example.com");
 	assert.equal(msg.subject, "Subj");
@@ -64,13 +67,16 @@ test("_toNodemailerMessage: maps camelCase body fields", () => {
 });
 
 test("_toNodemailerMessage: joins multi-recipient to/cc/bcc with ', '", () => {
-	const msg = _toNodemailerMessage({
-		to: ["a@example.com", "b@example.com"],
-		from: "from@example.com",
-		subject: "x",
-		cc: ["c@example.com", "d@example.com"],
-		bcc: ["e@example.com"],
-	}, baseOptions);
+	const msg = _toNodemailerMessage(
+		{
+			to: ["a@example.com", "b@example.com"],
+			from: "from@example.com",
+			subject: "x",
+			cc: ["c@example.com", "d@example.com"],
+			bcc: ["e@example.com"],
+		},
+		baseOptions,
+	);
 	assert.equal(msg.to, "a@example.com, b@example.com");
 	assert.equal(msg.cc, "c@example.com, d@example.com");
 	assert.equal(msg.bcc, "e@example.com");
@@ -91,15 +97,18 @@ test("_toNodemailerMessage: replyTo falls back to defaultReplyTo", () => {
 });
 
 test("_toNodemailerMessage: maps attachments (content/path/contentType/cid)", () => {
-	const msg = _toNodemailerMessage({
-		to: "t@x.com",
-		from: "f@x.com",
-		subject: "x",
-		attachments: [
-			{ filename: "a.pdf", path: "/tmp/a.pdf", contentType: "application/pdf" },
-			{ filename: "b.txt", content: "hello", cid: "logo" },
-		],
-	}, baseOptions);
+	const msg = _toNodemailerMessage(
+		{
+			to: "t@x.com",
+			from: "f@x.com",
+			subject: "x",
+			attachments: [
+				{ filename: "a.pdf", path: "/tmp/a.pdf", contentType: "application/pdf" },
+				{ filename: "b.txt", content: "hello", cid: "logo" },
+			],
+		},
+		baseOptions,
+	);
 	assert.equal(msg.attachments?.length, 2);
 	assert.deepEqual(msg.attachments?.[0], {
 		filename: "a.pdf",
@@ -114,19 +123,22 @@ test("_toNodemailerMessage: maps attachments (content/path/contentType/cid)", ()
 });
 
 test("_toNodemailerMessage: forwards only whitelisted providerOptions", () => {
-	const msg = _toNodemailerMessage({
-		to: "t@x.com",
-		from: "f@x.com",
-		subject: "x",
-		providerOptions: {
-			headers: { "X-Custom": "1" },
-			priority: "high",
-			// Not whitelisted — must be dropped:
-			to: "evil@x.com",
-			from: "evil@x.com",
-			whatever: true,
+	const msg = _toNodemailerMessage(
+		{
+			to: "t@x.com",
+			from: "f@x.com",
+			subject: "x",
+			providerOptions: {
+				headers: { "X-Custom": "1" },
+				priority: "high",
+				// Not whitelisted — must be dropped:
+				to: "evil@x.com",
+				from: "evil@x.com",
+				whatever: true,
+			},
 		},
-	}, baseOptions);
+		baseOptions,
+	);
 	const bag = msg as unknown as Record<string, unknown>;
 	assert.deepEqual(bag.headers, { "X-Custom": "1" });
 	assert.equal(bag.priority, "high");

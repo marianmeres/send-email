@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createMockTransport, send } from "../src/mod.ts";
 import type { SendOptions } from "../src/mod.ts";
+import { createMockTransport, send } from "../src/mod.ts";
 
 const msg: SendOptions = {
 	to: "to@example.com",

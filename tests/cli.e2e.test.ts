@@ -20,7 +20,15 @@ const path = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url
 /** How the CLI is started: Node by default, Deno under `CLI_RUNTIME=deno`. */
 const CLI_ARGV: [string, ...string[]] =
 	process.env.CLI_RUNTIME === "deno"
-		? ["deno", "run", "-A", "--no-lock", "--config", path("../jsr.json"), path("../src/main.ts")]
+		? [
+				"deno",
+				"run",
+				"-A",
+				"--no-lock",
+				"--config",
+				path("../jsr.json"),
+				path("../src/main.ts"),
+			]
 		: [process.execPath, path("../src/bin.ts")];
 
 /** The caller's environment minus any `SMTP_*`, so a developer's setup cannot leak in. */
@@ -41,20 +49,28 @@ function cli(
 	args: string[],
 	opts: { env?: Record<string, string>; input?: string } = {},
 ): { code: number | null; stdout: string; stderr: string } {
-	const { status, stdout, stderr } = spawnSync(CLI_ARGV[0], [...CLI_ARGV.slice(1), ...args], {
-		cwd,
-		env: { ...BASE_ENV, ...opts.env },
-		encoding: "utf8",
-		input: opts.input,
-		// Without `input`, stdin is /dev/null: not a TTY, empty.
-		stdio: [opts.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
-	});
+	const { status, stdout, stderr } = spawnSync(
+		CLI_ARGV[0],
+		[...CLI_ARGV.slice(1), ...args],
+		{
+			cwd,
+			env: { ...BASE_ENV, ...opts.env },
+			encoding: "utf8",
+			input: opts.input,
+			// Without `input`, stdin is /dev/null: not a TTY, empty.
+			stdio: [opts.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+		},
+	);
 	return { code: status, stdout, stderr };
 }
 
 test("--version prints the package version, exit 0", async () => {
 	const pkg = JSON.parse(await readFile(path("../package.json"), "utf8"));
-	assert.deepEqual(cli(["--version"]), { code: 0, stdout: `${pkg.version}\n`, stderr: "" });
+	assert.deepEqual(cli(["--version"]), {
+		code: 0,
+		stdout: `${pkg.version}\n`,
+		stderr: "",
+	});
 });
 
 test("--help prints usage, exit 0", () => {
@@ -85,9 +101,12 @@ test("send --dry-run: ./.env is loaded (BOM and all); the process env wins over 
 		assert.match(fromFile.stdout, /from: {5}file@example\.com/);
 		assert.match(fromFile.stdout, /reply-to: reply@example\.com\n/);
 
-		const fromProcess = cli(["send", "--to", "a@b.com", "--text", "hi", "--dry-run"], {
-			env: { SMTP_FROM: "proc@example.com" },
-		});
+		const fromProcess = cli(
+			["send", "--to", "a@b.com", "--text", "hi", "--dry-run"],
+			{
+				env: { SMTP_FROM: "proc@example.com" },
+			},
+		);
 		assert.match(fromProcess.stdout, /from: {5}proc@example\.com/);
 	} finally {
 		await rm(join(cwd, ".env"));
@@ -96,7 +115,10 @@ test("send --dry-run: ./.env is loaded (BOM and all); the process env wins over 
 
 test("send --dry-run: body from piped stdin, as HTML with a bare --html", () => {
 	const env = { SMTP_FROM: "from@example.com" };
-	const asText = cli(["send", "--to", "a@b.com", "--dry-run"], { env, input: "piped body" });
+	const asText = cli(["send", "--to", "a@b.com", "--dry-run"], {
+		env,
+		input: "piped body",
+	});
 	assert.equal(asText.code, 0, asText.stderr);
 	assert.match(asText.stdout, /text: {5}10 chars/);
 

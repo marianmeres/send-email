@@ -50,10 +50,7 @@ export interface CliIo {
 	/** Process-env getter. Default: reads `process.env`. */
 	env?: (key: string) => string | undefined;
 	/** Loads a `.env` file into a record. Default: read + parse via `util.parseEnv`. */
-	loadEnv?: (
-		envPath: string,
-		explicit: boolean,
-	) => Promise<Record<string, string>>;
+	loadEnv?: (envPath: string, explicit: boolean) => Promise<Record<string, string>>;
 	/** stdin probe + reader. Default: wraps `process.stdin`. */
 	stdin?: { isTerminal(): boolean; read(): Promise<string> };
 	/** SMTP transport factory. Default: {@link createNodemailerTransport}. */
@@ -65,10 +62,7 @@ interface ResolvedIo {
 	out: (line: string) => void;
 	err: (line: string) => void;
 	env: (key: string) => string | undefined;
-	loadEnv: (
-		envPath: string,
-		explicit: boolean,
-	) => Promise<Record<string, string>>;
+	loadEnv: (envPath: string, explicit: boolean) => Promise<Record<string, string>>;
 	stdin: { isTerminal(): boolean; read(): Promise<string> };
 	makeTransport: (options: NodemailerTransportOptions) => EmailTransport;
 }
@@ -282,8 +276,8 @@ async function buildMessage(
 	}
 
 	const fromFlag = typeof parsed.from === "string" ? parsed.from : undefined;
-	const from = (fromFlag && fromFlag.length > 0 ? fromFlag : undefined) ??
-		env("SMTP_FROM");
+	const from =
+		(fromFlag && fromFlag.length > 0 ? fromFlag : undefined) ?? env("SMTP_FROM");
 	if (!from) {
 		throw new UsageError("--from is required (or set env SMTP_FROM)");
 	}
@@ -302,22 +296,20 @@ async function buildMessage(
 	// --reply-to, else the SMTP_REPLY_TO env default. Resolving it here (rather
 	// than relying on the transport's defaultReplyTo) keeps the --dry-run preview
 	// honest about the Reply-To a real send would stamp.
-	const replyToFlag = typeof parsed["reply-to"] === "string"
-		? parsed["reply-to"]
-		: undefined;
-	const replyTo = (replyToFlag && replyToFlag.length > 0 ? replyToFlag : undefined) ??
+	const replyToFlag =
+		typeof parsed["reply-to"] === "string" ? parsed["reply-to"] : undefined;
+	const replyTo =
+		(replyToFlag && replyToFlag.length > 0 ? replyToFlag : undefined) ??
 		env("SMTP_REPLY_TO");
 	if (replyTo && replyTo.length > 0) message.replyTo = replyTo;
 
 	// Body resolution: file > inline flag > stdin (when piped).
 	const htmlFlag = parsed.html;
 	const textFlag = parsed.text;
-	const htmlFile = typeof parsed["html-file"] === "string"
-		? parsed["html-file"]
-		: undefined;
-	const textFile = typeof parsed["text-file"] === "string"
-		? parsed["text-file"]
-		: undefined;
+	const htmlFile =
+		typeof parsed["html-file"] === "string" ? parsed["html-file"] : undefined;
+	const textFile =
+		typeof parsed["text-file"] === "string" ? parsed["text-file"] : undefined;
 
 	if (htmlFile) message.html = await readFileBody(htmlFile);
 	else if (typeof htmlFlag === "string" && htmlFlag.length > 0) message.html = htmlFlag;
@@ -403,9 +395,11 @@ function certHint(message: string): string | undefined {
 		m.includes("does not match certificate") ||
 		m.includes("cert")
 	) {
-		return "Hint: looks like a TLS certificate hostname mismatch — set " +
+		return (
+			"Hint: looks like a TLS certificate hostname mismatch — set " +
 			"SMTP_SERVERNAME to the certificate's hostname, or " +
-			"SMTP_TLS_REJECT_UNAUTHORIZED=false as an insecure last resort.";
+			"SMTP_TLS_REJECT_UNAUTHORIZED=false as an insecure last resort."
+		);
 	}
 	return undefined;
 }
@@ -423,11 +417,13 @@ async function handleSend(parsed: ParsedArgs, io: ResolvedIo): Promise<number> {
 	const result = await transport.send(message);
 
 	if (parsed.json === true) {
-		io.out(JSON.stringify({
-			ok: true,
-			externalId: result.externalId,
-			transport: transport.name,
-		}));
+		io.out(
+			JSON.stringify({
+				ok: true,
+				externalId: result.externalId,
+				transport: transport.name,
+			}),
+		);
 	} else if (dryRun) {
 		io.out(formatDryRun(message, result.externalId));
 	} else {
@@ -443,11 +439,13 @@ async function handleVerify(parsed: ParsedArgs, io: ResolvedIo): Promise<number>
 
 	if (typeof transport.verify !== "function") {
 		if (parsed.json === true) {
-			io.out(JSON.stringify({
-				ok: true,
-				transport: transport.name,
-				supported: false,
-			}));
+			io.out(
+				JSON.stringify({
+					ok: true,
+					transport: transport.name,
+					supported: false,
+				}),
+			);
 		} else {
 			io.out(`verification not supported by ${transport.name}`);
 		}
