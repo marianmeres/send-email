@@ -1,6 +1,6 @@
 {
   "name": "@marianmeres/send-email",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Low-level, dependency-light \"send an email\" path: a provider-agnostic transport interface, a nodemailer SMTP transport, a mock transport, a one-shot send() and a send-email CLI.",
   "license": "MIT",
   "author": "Marian Meres",
